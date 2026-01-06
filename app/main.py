@@ -9,6 +9,7 @@ from app.api.routes_sessions import router as sessions_router
 from app.api.routes_stats import router as stats_router
 from app.api.routes_export import router as export_router
 from app.api.routes_ife import router as ife_router
+from app.api.routes_airports import router as airports_router
 
 app = FastAPI(title=settings.app_title)
 
@@ -23,3 +24,4 @@ app.include_router(sessions_router)
 app.include_router(stats_router)
 app.include_router(export_router)
 app.include_router(ife_router)
+app.include_router(airports_router)

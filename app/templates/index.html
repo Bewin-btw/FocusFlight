@@ -2,203 +2,303 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ title }}</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
-  <link rel="stylesheet" href="/static/css/app.css" />
+    <link rel="stylesheet" href="/static/css/app.css" />
 </head>
 
 <body>
-  <div class="wrap">
-    <header class="top">
-      <div class="brand">
-        <h1>{{ title }}</h1>
-        <p class="sub">
-          Focus as a flight. Autopilot checkpoints every 10 minutes. History and CSV export included.
-        </p>
-      </div>
-
-      <div class="pillrow">
-        <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></div>
-        <div class="pill">
-          Sound
-          <label class="switch">
-            <input id="soundToggle" type="checkbox" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <a class="pill link" href="/api/export/sessions.csv">Export CSV</a>
-      </div>
-    </header>
-
-    <section class="grid">
-      <div class="card">
-        <div class="hd" style="flex-direction: column; align-items: stretch;">
-          <div class="row" style="justify-content: space-between; align-items: baseline;">
-            <div class="title">Flight deck</div>
-
-            <div class="row" style="justify-content: flex-end;">
-              <label class="mini muted">From</label>
-              <select id="originSelect"></select>
-              <label class="mini muted">To</label>
-              <select id="destSelect"></select>
-            </div>
-          </div>
-          <div class="hint">Altitude drops on distractions</div>
-        </div>
-
-        <div class="bd">
-          <div class="row">
-            <input id="subject" placeholder="Subject (example: Algorithms)" style="flex: 1; min-width: 220px;" />
-            <input id="minutes" type="number" min="5" max="180" value="50" style="width: 120px;" />
-            <button class="primary" id="startBtn">Start</button>
-            <button id="pauseBtn" disabled>Pause</button>
-            <button class="danger" id="endBtn" disabled>End</button>
-          </div>
-
-          <div class="progress">
-            <div class="row space">
-              <div class="mini">Progress</div>
-              <div class="mono mini" id="timeLeft">00:00</div>
-            </div>
-            <div class="bar">
-              <div id="barFill"></div>
-            </div>
-          </div>
-
-          <!-- Old "outside view" stays (altitude, turbulence, plane) -->
-          <div class="sky" id="sky">
-            <div class="hud">
-              <div class="metric">
-                <div class="k">Altitude</div>
-                <div class="v" id="altitude">100</div>
-              </div>
-              <div class="metric">
-                <div class="k">Turbulence</div>
-                <div class="v" id="turb">0</div>
-              </div>
-              <div class="metric">
-                <div class="k">Distractions</div>
-                <div class="v" id="distCount">0</div>
-              </div>
-              <div class="grade" id="gradePill">Grade: -</div>
+    <div class="wrap">
+        <header class="top">
+            <div class="brand">
+                <h1>{{ title }}</h1>
+                <p class="sub">
+                    Focus as a flight. Autopilot checkpoints every 10 minutes. History and CSV export included.
+                </p>
             </div>
 
-            <div class="plane" id="plane" aria-hidden="true">✈️</div>
-            <div class="trail" id="trail"></div>
-          </div>
+            <div class="pillrow">
+                <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></div>
 
-          <!-- IFE Seat screen -->
-          <div class="ife">
-            <div class="ife-top">
-              <div class="ife-stat">
-                <div class="k">Route</div>
-                <div class="v"><span id="routeText">---</span></div>
-              </div>
-              <div class="ife-stat">
-                <div class="k">Remaining</div>
-                <div class="v"><span id="distRemain">0</span> km</div>
-              </div>
-              <div class="ife-stat">
-                <div class="k">ETA</div>
-                <div class="v"><span id="etaText">--:--</span></div>
-              </div>
-              <div class="ife-stat">
-                <div class="k">Ground speed</div>
-                <div class="v"><span id="speedText">0</span> km/h</div>
-              </div>
+                <div class="pill">
+                    Effects
+                    <label class="switch">
+                        <input id="soundToggle" type="checkbox" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="pill">
+                    Ambience
+                    <label class="switch">
+                        <input id="ambientToggle" type="checkbox" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="pill">
+                    Cabin
+                    <label class="switch">
+                        <input id="cabinToggle" type="checkbox">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <a class="pill link" href="/api/export/sessions.csv">Export CSV</a>
+            </div>
+        </header>
+
+        <section class="grid">
+            <div class="card">
+                <div class="hd" style="flex-direction: column; align-items: stretch;">
+                    <div class="row" style="justify-content: space-between; align-items: baseline;">
+                        <div class="title">Flight deck</div>
+
+                        <div class="row" style="justify-content: flex-end; flex-wrap: wrap; gap: 10px;">
+                            <div class="airports">
+                                <div class="combo" id="originCombo">
+                                    <div class="combo-label">
+                                        <span class="mini muted">From</span>
+                                        <span class="mini muted combo-hint" id="originHint"></span>
+                                    </div>
+
+                                    <div class="combo-input">
+                                        <input id="originInput" type="text" autocomplete="off" spellcheck="false"
+                                            placeholder="City or IATA code" />
+                                        <button class="combo-btn" id="originClear" type="button"
+                                            aria-label="Clear">×</button>
+                                        <button class="combo-btn" id="originToggle" type="button"
+                                            aria-label="Open">▾</button>
+                                    </div>
+
+                                    <div class="combo-menu" id="originMenu" role="listbox" aria-label="Origin airports">
+                                    </div>
+
+                                    <select id="originSelect" class="sr-only" aria-hidden="true"></select>
+                                </div>
+
+                                <button class="ghost swap" id="swapBtn" type="button">Swap</button>
+
+                                <div class="combo" id="destCombo">
+                                    <div class="combo-label">
+                                        <span class="mini muted">To</span>
+                                        <span class="mini muted combo-hint" id="destHint"></span>
+                                    </div>
+
+                                    <div class="combo-input">
+                                        <input id="destInput" type="text" autocomplete="off" spellcheck="false"
+                                            placeholder="City or IATA code" />
+                                        <button class="combo-btn" id="destClear" type="button"
+                                            aria-label="Clear">×</button>
+                                        <button class="combo-btn" id="destToggle" type="button"
+                                            aria-label="Open">▾</button>
+                                    </div>
+
+                                    <div class="combo-menu" id="destMenu" role="listbox"
+                                        aria-label="Destination airports"></div>
+
+                                    <select id="destSelect" class="sr-only" aria-hidden="true"></select>
+                                </div>
+                            </div>
+
+                            <label class="mini muted">Mode</label>
+                            <select id="routeMode">
+                                <option value="real" selected>Real routes</option>
+                                <option value="custom">Custom</option>
+                            </select>
+
+                            <button class="ghost" id="pickRouteBtn" type="button">Pick for session</button>
+
+                            <label class="mini muted">3D</label>
+                            <label class="switch">
+                                <input id="view3dToggle" type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+
+                            <label class="mini muted">Follow</label>
+                            <label class="switch">
+                                <input id="followToggle" type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="hint">Altitude drops on distractions</div>
+                </div>
+
+                <div class="bd">
+                    <div class="row">
+                        <input id="subject" placeholder="Subject (example: Algorithms)"
+                            style="flex: 1; min-width: 220px;" />
+                        <input id="minutes" type="number" min="5" max="180" value="50" style="width: 120px;" />
+                        <button class="primary" id="startBtn">Start</button>
+                        <button id="pauseBtn" disabled>Pause</button>
+                        <button class="danger" id="endBtn" disabled>End</button>
+                    </div>
+
+                    <div class="progress">
+                        <div class="row space">
+                            <div class="mini">Progress</div>
+                            <div class="mono mini" id="timeLeft">00:00</div>
+                        </div>
+                        <div class="bar">
+                            <div id="barFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="sky" id="sky">
+                        <div class="hud">
+                            <div class="metric">
+                                <div class="k">Altitude</div>
+                                <div class="v" id="altitude">100</div>
+                            </div>
+                            <div class="metric">
+                                <div class="k">Turbulence</div>
+                                <div class="v" id="turb">0</div>
+                            </div>
+                            <div class="metric">
+                                <div class="k">Distractions</div>
+                                <div class="v" id="distCount">0</div>
+                            </div>
+                            <div class="grade" id="gradePill">Grade: -</div>
+                        </div>
+
+                        <div class="plane" id="plane" aria-hidden="true">✈️</div>
+                        <div class="trail" id="trail"></div>
+                    </div>
+
+                    <div class="ife">
+                        <div class="ife-top">
+                            <div class="ife-stat">
+                                <div class="k">Route</div>
+                                <div class="v"><span id="routeText">---</span></div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">Remaining</div>
+                                <div class="v"><span id="distRemain">0</span> km</div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">ETA</div>
+                                <div class="v"><span id="etaText">--:--</span></div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">Ground speed</div>
+                                <div class="v"><span id="speedText">0</span> km/h</div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">Origin time</div>
+                                <div class="v"><span id="originTime">--:--</span></div>
+                                <div class="mini muted" id="originTz"></div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">Destination time</div>
+                                <div class="v"><span id="destTime">--:--</span></div>
+                                <div class="mini muted" id="destTz"></div>
+                            </div>
+                        </div>
+
+                        <div id="map" class="map"></div>
+
+                        <div class="ife-bottom">
+                            <div class="ife-stat">
+                                <div class="k">Weather at destination</div>
+                                <div class="v"><span id="wxText">Loading</span></div>
+                                <div class="mini muted" id="wxSub"></div>
+                            </div>
+
+                            <div class="ife-stat">
+                                <div class="k">Cabin</div>
+                                <div class="v">Focus mode</div>
+                                <div class="mini muted">Autopilot checkpoints each 10 min</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="gauge">
+                            <div class="gtitle">
+                                <span>Altitude over time</span>
+                                <span class="mono" id="altLabel">ALT 100</span>
+                            </div>
+                            <canvas id="altChart" width="900" height="240"></canvas>
+                        </div>
+                        <div class="gauge">
+                            <div class="gtitle">
+                                <span>Turbulence over time</span>
+                                <span class="mono" id="turbLabel">TRB 0</span>
+                            </div>
+                            <canvas id="turbChart" width="900" height="240"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="mini muted" id="autopilotInfo">
+                        Autopilot: checkpoints every 10 minutes.
+                    </div>
+                </div>
             </div>
 
-            <div id="map" class="map"></div>
+            <div class="stack">
+                <div class="card">
+                    <div class="hd">
+                        <div class="title">Distractions</div>
+                        <div class="hint">Log quickly and refocus</div>
+                    </div>
+                    <div class="bd">
+                        <textarea id="note" placeholder="What distracted you? (optional)"></textarea>
+                        <div class="row">
+                            <button id="distBtn" disabled>Log distraction</button>
+                            <button class="ghost" id="refreshHistoryBtn">Refresh history</button>
+                        </div>
 
-            <div class="ife-bottom">
-              <div class="ife-stat">
-                <div class="k">Weather at destination</div>
-                <div class="v"><span id="wxText">Loading</span></div>
-                <div class="mini muted" id="wxSub"></div>
-              </div>
+                        <div class="title sm">Flight events</div>
+                        <div class="log" id="log"></div>
+                    </div>
+                </div>
 
-              <div class="ife-stat">
-                <div class="k">Cabin</div>
-                <div class="v">Focus mode</div>
-                <div class="mini muted">Autopilot checkpoints each 10 min</div>
-              </div>
+                <div class="card">
+                    <div class="hd">
+                        <div class="title">Recent flights</div>
+                        <div class="hint">Last 10 sessions</div>
+                    </div>
+                    <div class="bd">
+                        <div class="cards" id="recentCards"></div>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <div class="panel">
-            <div class="gauge">
-              <div class="gtitle">
-                <span>Altitude over time</span>
-                <span class="mono" id="altLabel">ALT 100</span>
-              </div>
-              <canvas id="altChart" width="900" height="240"></canvas>
-            </div>
-            <div class="gauge">
-              <div class="gtitle">
-                <span>Turbulence over time</span>
-                <span class="mono" id="turbLabel">TRB 0</span>
-              </div>
-              <canvas id="turbChart" width="900" height="240"></canvas>
-            </div>
-          </div>
-
-          <div class="mini muted" id="autopilotInfo">
-            Autopilot: checkpoints every 10 minutes.
-          </div>
-        </div>
-      </div>
-
-      <div class="stack">
-        <div class="card">
-          <div class="hd">
-            <div class="title">Distractions</div>
-            <div class="hint">Log quickly and refocus</div>
-          </div>
-          <div class="bd">
-            <textarea id="note" placeholder="What distracted you? (optional)"></textarea>
-            <div class="row">
-              <button id="distBtn" disabled>Log distraction</button>
-              <button class="ghost" id="refreshHistoryBtn">Refresh history</button>
-            </div>
-
-            <div class="title sm">Flight events</div>
-            <div class="log" id="log"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="hd">
-            <div class="title">Recent flights</div>
-            <div class="hint">Last 10 sessions</div>
-          </div>
-          <div class="bd">
-            <div class="cards" id="recentCards"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <div class="modal" id="checkpointModal" aria-hidden="true">
-    <div class="modal-card">
-      <div class="title">Autopilot checkpoint</div>
-      <div class="muted">Write a micro goal for next 10 minutes, then confirm.</div>
-      <textarea id="checkpointNote" placeholder="Example: finish 2 tasks, solve 1 problem, summarize 1 page"></textarea>
-      <div class="row right">
-        <button class="ghost" id="checkpointSkip">Later</button>
-        <button class="primary" id="checkpointDone">Confirm</button>
-      </div>
+        </section>
     </div>
-  </div>
 
-  <script src="/static/js/app.js"></script>
+    <div class="toast" id="toast"></div>
+
+    <div class="modal" id="checkpointModal" aria-hidden="true">
+        <div class="modal-card">
+            <div class="title">Autopilot checkpoint</div>
+            <div class="muted">Write a micro goal for next 10 minutes, then confirm.</div>
+            <textarea id="checkpointNote"
+                placeholder="Example: finish 2 tasks, solve 1 problem, summarize 1 page"></textarea>
+            <div class="row right">
+                <button class="ghost" id="checkpointSkip">Later</button>
+                <button class="primary" id="checkpointDone">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <div class="cabin-overlay" id="cabinOverlay" aria-hidden="true">
+        <div class="vignette"></div>
+        <div class="bezel"></div>
+        <div class="reflection"></div>
+    </div>
 </body>
 
 </html>
