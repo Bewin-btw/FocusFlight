@@ -16,15 +16,22 @@ let pendingCheckpointId = null;
 const altSeries = [];
 const turbSeries = [];
 
-function $(id){ return document.getElementById(id); }
+function $(id) { return document.getElementById(id); }
 
-function soundEnabled(){
+/* IFE map state */
+let map = null;
+let planeMarker = null;
+let routeSourceId = "routeSource";
+let routeLineId = "routeLine";
+let plan = null;
+
+function soundEnabled() {
   return $("soundToggle").checked;
 }
 
 /* WebAudio: no files needed */
 let audioCtx = null;
-function beep(freq, ms, type="sine", gain=0.06){
+function beep(freq, ms, type = "sine", gain = 0.06) {
   if (!soundEnabled()) return;
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const t0 = audioCtx.currentTime;
@@ -36,52 +43,54 @@ function beep(freq, ms, type="sine", gain=0.06){
   osc.connect(g);
   g.connect(audioCtx.destination);
   osc.start(t0);
-  osc.stop(t0 + ms/1000);
+  osc.stop(t0 + ms / 1000);
 }
-function takeoffSound(){
+
+function takeoffSound() {
   if (!soundEnabled()) return;
   beep(220, 120, "sine", 0.05);
   setTimeout(() => beep(330, 120, "sine", 0.05), 110);
   setTimeout(() => beep(440, 160, "triangle", 0.06), 220);
 }
-function ding(){
+
+function ding() {
   if (!soundEnabled()) return;
   beep(880, 90, "triangle", 0.05);
   setTimeout(() => beep(1320, 70, "triangle", 0.04), 90);
 }
 
-function toast(msg){
+function toast(msg) {
   const el = $("toast");
   el.textContent = msg;
   el.classList.add("show");
   setTimeout(() => el.classList.remove("show"), 1100);
 }
 
-function fmtTime(totalSeconds){
+function fmtTime(totalSeconds) {
   totalSeconds = Math.max(0, Math.floor(totalSeconds));
   const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
   const s = String(totalSeconds % 60).padStart(2, "0");
   return `${m}:${s}`;
 }
 
-function addLog(text){
+function addLog(text) {
   const log = $("log");
   const item = document.createElement("div");
   item.className = "log-item";
-  const ts = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   item.innerHTML = `<span class="mono">${ts}</span> - ${text}`;
   log.prepend(item);
 }
 
-function setStatus(running, pausing=false){
+function setStatus(running, pausing = false) {
   const dot = $("statusDot");
   const txt = $("statusText");
-  if (!running){
+  if (!running) {
     dot.style.background = "rgba(255,255,255,0.35)";
     txt.textContent = "Idle";
     return;
   }
-  if (pausing){
+  if (pausing) {
     dot.style.background = "rgba(255,211,107,0.95)";
     txt.textContent = "Paused";
     return;
@@ -90,23 +99,25 @@ function setStatus(running, pausing=false){
   txt.textContent = "Flying";
 }
 
-function setControls(running){
+function setControls(running) {
   $("startBtn").disabled = running;
   $("pauseBtn").disabled = !running;
   $("endBtn").disabled = !running;
   $("distBtn").disabled = !running;
   $("subject").disabled = running;
   $("minutes").disabled = running;
+  $("originSelect").disabled = running;
+  $("destSelect").disabled = running;
 }
 
-function gradeFromAlt(alt){
+function gradeFromAlt(alt) {
   if (alt >= 90) return ["A", "rgba(94,240,168,0.18)", "rgba(94,240,168,0.45)"];
   if (alt >= 80) return ["B", "rgba(154,209,255,0.18)", "rgba(154,209,255,0.45)"];
   if (alt >= 65) return ["C", "rgba(255,211,107,0.18)", "rgba(255,211,107,0.45)"];
   return ["D", "rgba(255,107,139,0.18)", "rgba(255,107,139,0.45)"];
 }
 
-function updateGrade(){
+function updateGrade() {
   const pill = $("gradePill");
   const [g, bg, br] = gradeFromAlt(altitude);
   pill.textContent = `Grade: ${g}`;
@@ -114,7 +125,7 @@ function updateGrade(){
   pill.style.borderColor = br;
 }
 
-function drawSeries(canvasId, series, labelId, scaleMax=110){
+function drawSeries(canvasId, series, labelId, scaleMax = 110) {
   const canvas = $(canvasId);
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
@@ -123,7 +134,7 @@ function drawSeries(canvasId, series, labelId, scaleMax=110){
 
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
-  for (let i = 1; i <= 4; i++){
+  for (let i = 1; i <= 4; i++) {
     const y = (h * i) / 5;
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
   }
@@ -132,8 +143,8 @@ function drawSeries(canvasId, series, labelId, scaleMax=110){
   const pad = 14;
   const minV = 0, maxV = scaleMax;
 
-  const xAt = (i) => pad + (w - pad*2) * (i / (series.length - 1));
-  const yAt = (v) => (h - pad) - (h - pad*2) * ((v - minV) / (maxV - minV));
+  const xAt = (i) => pad + (w - pad * 2) * (i / (series.length - 1));
+  const yAt = (v) => (h - pad) - (h - pad * 2) * ((v - minV) / (maxV - minV));
 
   ctx.lineWidth = 3;
   ctx.lineJoin = "round";
@@ -157,12 +168,239 @@ function drawSeries(canvasId, series, labelId, scaleMax=110){
 
   const last = series[series.length - 1];
   ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.beginPath(); ctx.arc(xAt(series.length - 1), yAt(last), 4.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(xAt(series.length - 1), yAt(last), 4.5, 0, Math.PI * 2); ctx.fill();
 
   $(labelId).textContent = (canvasId === "altChart") ? `ALT ${last}` : `TRB ${last}`;
 }
 
-function updateUI(progress){
+/* IFE helpers */
+function initMapOnce() {
+  if (map) return;
+
+  map = new maplibregl.Map({
+    container: "map",
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type: "raster",
+          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          attribution: "© OpenStreetMap contributors"
+        }
+      },
+      layers: [{ id: "osm", type: "raster", source: "osm" }]
+    },
+    center: [13.4, 52.52],
+    zoom: 4
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "top-right");
+}
+
+async function loadAirportsIntoSelects() {
+  const res = await fetch("/api/ife/airports");
+  if (!res.ok) {
+    toast("IFE airports failed");
+    return;
+  }
+
+  const data = await res.json();
+  const items = data.items || [];
+
+  const oSel = $("originSelect");
+  const dSel = $("destSelect");
+
+  oSel.innerHTML = "";
+  dSel.innerHTML = "";
+
+  for (const a of items) {
+    const opt1 = document.createElement("option");
+    opt1.value = a.code;
+    opt1.textContent = `${a.code}  ${a.name}`;
+    oSel.appendChild(opt1);
+
+    const opt2 = document.createElement("option");
+    opt2.value = a.code;
+    opt2.textContent = `${a.code}  ${a.name}`;
+    dSel.appendChild(opt2);
+  }
+
+  if (items.find(x => x.code === "BER")) oSel.value = "BER";
+  else if (items[0]) oSel.value = items[0].code;
+
+  if (items.find(x => x.code === "IST")) dSel.value = "IST";
+  else if (items[1]) dSel.value = items[1].code;
+}
+
+async function loadPlan(plannedMinutes) {
+  const origin = $("originSelect").value;
+  const dest = $("destSelect").value;
+
+  const url = `/api/ife/plan?origin=${encodeURIComponent(origin)}&dest=${encodeURIComponent(dest)}&planned_minutes=${plannedMinutes}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  if (data.error) return null;
+  return data;
+}
+
+function setRouteOnMap(p) {
+  plan = p;
+  $("routeText").textContent = `${p.origin.code} to ${p.dest.code}`;
+  $("speedText").textContent = String(p.speed_kmh ?? 0);
+
+  if (!map) return;
+
+  const bounds = new maplibregl.LngLatBounds();
+  for (const c of p.path) bounds.extend(c);
+  map.fitBounds(bounds, { padding: 40, duration: 600 });
+
+  const geo = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: p.path }
+    }]
+  };
+
+  if (!map.getSource(routeSourceId)) {
+    map.addSource(routeSourceId, { type: "geojson", data: geo });
+    map.addLayer({
+      id: routeLineId,
+      type: "line",
+      source: routeSourceId,
+      paint: {
+        "line-width": 4,
+        "line-opacity": 0.85
+      }
+    });
+  } else {
+    map.getSource(routeSourceId).setData(geo);
+  }
+
+  if (!planeMarker) {
+    const el = document.createElement("div");
+    el.textContent = "✈️";
+    el.style.fontSize = "22px";
+    planeMarker = new maplibregl.Marker({ element: el, rotationAlignment: "map" })
+      .setLngLat(p.path[0])
+      .addTo(map);
+  } else {
+    planeMarker.setLngLat(p.path[0]);
+  }
+}
+
+function wxCodeToText(code) {
+  const m = {
+    0: "Clear",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Rime fog",
+    51: "Drizzle",
+    53: "Drizzle",
+    55: "Drizzle",
+    61: "Rain",
+    63: "Rain",
+    65: "Heavy rain",
+    71: "Snow",
+    73: "Snow",
+    75: "Heavy snow",
+    80: "Rain showers",
+    81: "Rain showers",
+    82: "Heavy showers",
+    95: "Thunderstorm"
+  };
+  return m[code] || `Weather code ${code}`;
+}
+
+async function fetchDestinationWeather(p) {
+  try {
+    const lat = p.dest.lat;
+    const lon = p.dest.lon;
+
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&current_weather=true&forecast_days=1&timezone=auto`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      $("wxText").textContent = "Weather unavailable";
+      $("wxSub").textContent = "";
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.current_weather) {
+      $("wxText").textContent = "No weather data";
+      $("wxSub").textContent = "";
+      return;
+    }
+
+    const cw = data.current_weather;
+    const t = cw.temperature;
+    const w = cw.windspeed;
+    const code = cw.weathercode;
+
+    $("wxText").textContent = `${wxCodeToText(code)}, ${t}°C`;
+    $("wxSub").textContent = `Wind ${w} km/h, updated ${cw.time}`;
+  } catch {
+    $("wxText").textContent = "Weather failed";
+    $("wxSub").textContent = "";
+  }
+}
+
+function updateIFEProgress(progress) {
+  if (!plan) return;
+
+  const total = plan.path?.length || 0;
+  if (total < 2) return;
+
+  const idx = Math.max(0, Math.min(total - 1, Math.floor(progress * (total - 1))));
+  const pos = plan.path[idx];
+
+  if (planeMarker) planeMarker.setLngLat(pos);
+
+  const remainKm = Math.max(0, (plan.total_km ?? 0) * (1 - progress));
+  $("distRemain").textContent = String(Math.round(remainKm));
+
+  const remainS = Math.max(0, Math.floor((plan.duration_s ?? 0) * (1 - progress)));
+  const eta = new Date(Date.now() + remainS * 1000);
+  const hh = String(eta.getHours()).padStart(2, "0");
+  const mm = String(eta.getMinutes()).padStart(2, "0");
+  $("etaText").textContent = `${hh}:${mm}`;
+}
+
+async function setupIFEForFlight(plannedMinutes) {
+  initMapOnce();
+
+  const p = await loadPlan(plannedMinutes);
+  if (!p) {
+    toast("IFE route failed");
+    return;
+  }
+
+  const apply = async () => {
+    setRouteOnMap(p);
+    await fetchDestinationWeather(p);
+    updateIFEProgress(0);
+  };
+
+  if (!map) return;
+
+  if (map.loaded()) {
+    await apply();
+  } else {
+    map.once("load", async () => { await apply(); });
+  }
+}
+
+/* Main UI update */
+function updateUI(progress) {
   $("barFill").style.width = `${Math.min(100, Math.max(0, progress * 100))}%`;
 
   $("altitude").textContent = altitude;
@@ -203,10 +441,12 @@ function updateUI(progress){
 
   drawSeries("altChart", altSeries, "altLabel", 110);
   drawSeries("turbChart", turbSeries, "turbLabel", 110);
+
+  updateIFEProgress(progress);
 }
 
 /* Autopilot checkpoints */
-async function loadCheckpoints(){
+async function loadCheckpoints() {
   const res = await fetch(`/api/session/${sessionId}/checkpoints`);
   if (!res.ok) return;
   const data = await res.json();
@@ -215,7 +455,7 @@ async function loadCheckpoints(){
   pendingCheckpointId = null;
 }
 
-function showCheckpointModal(checkpointId){
+function showCheckpointModal(checkpointId) {
   pendingCheckpointId = checkpointId;
   $("checkpointNote").value = "";
   $("checkpointModal").classList.add("show");
@@ -223,32 +463,32 @@ function showCheckpointModal(checkpointId){
   toast("Checkpoint");
 }
 
-function hideCheckpointModal(){
+function hideCheckpointModal() {
   $("checkpointModal").classList.remove("show");
   $("checkpointModal").setAttribute("aria-hidden", "true");
   pendingCheckpointId = null;
 }
 
-async function completeCheckpointNow(){
+async function completeCheckpointNow() {
   if (!pendingCheckpointId) return;
   const note = $("checkpointNote").value.trim();
   await fetch("/api/checkpoint/complete", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ checkpoint_id: pendingCheckpointId, note })
   });
   addLog(note ? `Checkpoint done: ${note}` : "Checkpoint done");
   hideCheckpointModal();
 }
 
-function maybeTriggerCheckpoint(elapsedSeconds){
-  while (nextCheckpointIdx < checkpoints.length){
+function maybeTriggerCheckpoint(elapsedSeconds) {
+  while (nextCheckpointIdx < checkpoints.length) {
     const cp = checkpoints[nextCheckpointIdx];
-    if (cp.completed_at){
+    if (cp.completed_at) {
       nextCheckpointIdx += 1;
       continue;
     }
-    if (elapsedSeconds >= cp.due_seconds){
+    if (elapsedSeconds >= cp.due_seconds) {
       showCheckpointModal(cp.id);
       nextCheckpointIdx += 1;
       return;
@@ -257,7 +497,7 @@ function maybeTriggerCheckpoint(elapsedSeconds){
   }
 }
 
-function tick(){
+function tick() {
   if (!sessionId || paused) return;
 
   const now = Date.now();
@@ -271,42 +511,43 @@ function tick(){
 
   maybeTriggerCheckpoint(elapsed);
 
-  if (left <= 0){
+  if (left <= 0) {
     addLog("Landing complete. Ending flight.");
     endFlight();
   }
 }
 
-async function refreshHistory(){
+async function refreshHistory() {
   const res = await fetch("/api/sessions/recent?limit=10");
   if (!res.ok) return;
   const data = await res.json();
   renderRecent(data.items || []);
 }
 
-function renderRecent(items){
+function renderRecent(items) {
   const root = $("recentCards");
   root.innerHTML = "";
 
-  if (!items.length){
+  if (!items.length) {
     root.innerHTML = `<div class="muted mini">No finished flights yet</div>`;
     return;
   }
 
-  for (const s of items){
+  for (const s of items) {
     const card = document.createElement("div");
     card.className = "flight-card";
 
     const g = s.grade || "-";
-    const [_, bg, br] = gradeFromAlt(s.altitude_end ?? 100);
+    const junk = (s.altitude_end ?? 100);
+    const tmp = gradeFromAlt(junk);
+    const bg = tmp[1];
+    const br = tmp[2];
 
     card.innerHTML = `
       <div class="topline">
         <div>
           <div style="font-weight:720">${escapeHtml(s.subject)}</div>
-          <div class="mini muted">
-            ${escapeHtml(s.started_at || "")}
-          </div>
+          <div class="mini muted">${escapeHtml(s.started_at || "")}</div>
         </div>
         <div class="badge" style="background:${bg}; border-color:${br}">Grade ${g}</div>
       </div>
@@ -318,18 +559,18 @@ function renderRecent(items){
   }
 }
 
-function escapeHtml(s){
-  return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+function escapeHtml(s) {
+  return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 /* API actions */
-async function startFlight(){
+async function startFlight() {
   const subject = $("subject").value.trim() || "Study";
   const minutes = parseInt($("minutes").value || "50", 10);
 
   const res = await fetch("/api/session/start", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ subject, planned_minutes: minutes })
   });
   const data = await res.json();
@@ -353,11 +594,13 @@ async function startFlight(){
   $("pauseBtn").textContent = "Pause";
   $("timeLeft").textContent = fmtTime(plannedSeconds);
 
-  addLog(`Takeoff: ${subject}, plan ${Math.floor(plannedSeconds/60)} min, session #${sessionId}`);
+  addLog(`Takeoff: ${subject}, plan ${Math.floor(plannedSeconds / 60)} min, session #${sessionId}`);
   takeoffSound();
   toast("Takeoff");
 
   await loadCheckpoints();
+
+  await setupIFEForFlight(Math.floor(plannedSeconds / 60));
 
   if (timer) clearInterval(timer);
   timer = setInterval(tick, 250);
@@ -365,10 +608,10 @@ async function startFlight(){
   updateUI(0);
 }
 
-function togglePause(){
+function togglePause() {
   if (!sessionId) return;
 
-  if (!paused){
+  if (!paused) {
     paused = true;
     elapsedBeforePause += Math.floor((Date.now() - startMs) / 1000);
     $("pauseBtn").textContent = "Resume";
@@ -385,18 +628,18 @@ function togglePause(){
   }
 }
 
-async function logDistraction(){
+async function logDistraction() {
   if (!sessionId) return;
 
   const note = $("note").value.trim();
   $("note").value = "";
 
   const res = await fetch("/api/distraction", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, note })
   });
-  if (!res.ok){
+  if (!res.ok) {
     addLog("Failed to log distraction.");
     toast("Log failed");
     return;
@@ -411,7 +654,7 @@ async function logDistraction(){
   toast("Ding");
 }
 
-async function endFlight(){
+async function endFlight() {
   if (!sessionId) return;
 
   let elapsed = elapsedBeforePause;
@@ -419,8 +662,8 @@ async function endFlight(){
   elapsed = Math.max(0, Math.min(plannedSeconds, elapsed));
 
   const res = await fetch("/api/session/end", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       session_id: sessionId,
       actual_seconds: elapsed,
@@ -458,5 +701,17 @@ $("checkpointSkip").addEventListener("click", () => {
   hideCheckpointModal();
 });
 
+$("originSelect").addEventListener("change", async () => {
+  if (!plannedSeconds) return;
+  await setupIFEForFlight(Math.floor(plannedSeconds / 60));
+});
+
+$("destSelect").addEventListener("change", async () => {
+  if (!plannedSeconds) return;
+  await setupIFEForFlight(Math.floor(plannedSeconds / 60));
+});
+
+/* Initial */
 refreshHistory();
 setStatus(false, false);
+loadAirportsIntoSelects();

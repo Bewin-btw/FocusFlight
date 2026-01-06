@@ -1,32 +1,56 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ title }}</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
   <link rel="stylesheet" href="/static/css/app.css" />
 </head>
+
 <body>
   <div class="wrap">
     <header class="top">
       <div class="brand">
         <h1>{{ title }}</h1>
-        <p class="sub">Focus as a flight. Autopilot checkpoints every 10 minutes. History and CSV export included.</p>
+        <p class="sub">
+          Focus as a flight. Autopilot checkpoints every 10 minutes. History and CSV export included.
+        </p>
       </div>
 
       <div class="pillrow">
         <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></div>
-        <div class="pill">Sound <label class="switch"><input id="soundToggle" type="checkbox" checked><span class="slider"></span></label></div>
+        <div class="pill">
+          Sound
+          <label class="switch">
+            <input id="soundToggle" type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
         <a class="pill link" href="/api/export/sessions.csv">Export CSV</a>
       </div>
     </header>
 
     <section class="grid">
       <div class="card">
-        <div class="hd">
-          <div class="title">Flight deck</div>
+        <div class="hd" style="flex-direction: column; align-items: stretch;">
+          <div class="row" style="justify-content: space-between; align-items: baseline;">
+            <div class="title">Flight deck</div>
+
+            <div class="row" style="justify-content: flex-end;">
+              <label class="mini muted">From</label>
+              <select id="originSelect"></select>
+              <label class="mini muted">To</label>
+              <select id="destSelect"></select>
+            </div>
+          </div>
           <div class="hint">Altitude drops on distractions</div>
         </div>
+
         <div class="bd">
           <div class="row">
             <input id="subject" placeholder="Subject (example: Algorithms)" style="flex: 1; min-width: 220px;" />
@@ -41,19 +65,69 @@
               <div class="mini">Progress</div>
               <div class="mono mini" id="timeLeft">00:00</div>
             </div>
-            <div class="bar"><div id="barFill"></div></div>
+            <div class="bar">
+              <div id="barFill"></div>
+            </div>
           </div>
 
+          <!-- Old "outside view" stays (altitude, turbulence, plane) -->
           <div class="sky" id="sky">
             <div class="hud">
-              <div class="metric"><div class="k">Altitude</div><div class="v" id="altitude">100</div></div>
-              <div class="metric"><div class="k">Turbulence</div><div class="v" id="turb">0</div></div>
-              <div class="metric"><div class="k">Distractions</div><div class="v" id="distCount">0</div></div>
+              <div class="metric">
+                <div class="k">Altitude</div>
+                <div class="v" id="altitude">100</div>
+              </div>
+              <div class="metric">
+                <div class="k">Turbulence</div>
+                <div class="v" id="turb">0</div>
+              </div>
+              <div class="metric">
+                <div class="k">Distractions</div>
+                <div class="v" id="distCount">0</div>
+              </div>
               <div class="grade" id="gradePill">Grade: -</div>
             </div>
 
             <div class="plane" id="plane" aria-hidden="true">✈️</div>
             <div class="trail" id="trail"></div>
+          </div>
+
+          <!-- IFE Seat screen -->
+          <div class="ife">
+            <div class="ife-top">
+              <div class="ife-stat">
+                <div class="k">Route</div>
+                <div class="v"><span id="routeText">---</span></div>
+              </div>
+              <div class="ife-stat">
+                <div class="k">Remaining</div>
+                <div class="v"><span id="distRemain">0</span> km</div>
+              </div>
+              <div class="ife-stat">
+                <div class="k">ETA</div>
+                <div class="v"><span id="etaText">--:--</span></div>
+              </div>
+              <div class="ife-stat">
+                <div class="k">Ground speed</div>
+                <div class="v"><span id="speedText">0</span> km/h</div>
+              </div>
+            </div>
+
+            <div id="map" class="map"></div>
+
+            <div class="ife-bottom">
+              <div class="ife-stat">
+                <div class="k">Weather at destination</div>
+                <div class="v"><span id="wxText">Loading</span></div>
+                <div class="mini muted" id="wxSub"></div>
+              </div>
+
+              <div class="ife-stat">
+                <div class="k">Cabin</div>
+                <div class="v">Focus mode</div>
+                <div class="mini muted">Autopilot checkpoints each 10 min</div>
+              </div>
+            </div>
           </div>
 
           <div class="panel">
@@ -126,4 +200,5 @@
 
   <script src="/static/js/app.js"></script>
 </body>
+
 </html>

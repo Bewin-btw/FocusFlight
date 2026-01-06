@@ -165,3 +165,61 @@ canvas{width:100%;height:120px;display:block;border-radius:12px;border:1px solid
 }
 .switch input:checked + .slider{background:rgba(94,240,168,0.25);border-color:rgba(94,240,168,0.35)}
 .switch input:checked + .slider:before{transform:translateX(20px)}
+
+select{
+  font:inherit;color:var(--text);
+  background:rgba(0,0,0,0.22);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:12px;padding:10px 12px;outline:none;
+}
+
+.ife{
+  margin-top:14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.14);
+  background:linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.28));
+  overflow:hidden;
+}
+
+.ife-top, .ife-bottom{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 12px;
+  border-bottom:1px solid rgba(255,255,255,0.10);
+}
+
+.ife-bottom{
+  border-top:1px solid rgba(255,255,255,0.10);
+  border-bottom:none;
+}
+
+.ife-stat{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:160px;
+}
+
+.ife-stat .k{
+  font-size:11px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+}
+
+.ife-stat .v{
+  font-size:14px;
+  font-weight:720;
+}
+
+.map{
+  height:360px;
+  width:100%;
+}
+
+.maplibregl-ctrl-attrib{
+  font-size:11px;
+}
