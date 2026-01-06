@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <h1>{{ title }}</h1>
+        <p class="sub">Focus as a flight. Autopilot checkpoints every 10 minutes. History and CSV export included.</p>
+      </div>
+
+      <div class="pillrow">
+        <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></div>
+        <div class="pill">Sound <label class="switch"><input id="soundToggle" type="checkbox" checked><span class="slider"></span></label></div>
+        <a class="pill link" href="/api/export/sessions.csv">Export CSV</a>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <div class="hd">
+          <div class="title">Flight deck</div>
+          <div class="hint">Altitude drops on distractions</div>
+        </div>
+        <div class="bd">
+          <div class="row">
+            <input id="subject" placeholder="Subject (example: Algorithms)" style="flex: 1; min-width: 220px;" />
+            <input id="minutes" type="number" min="5" max="180" value="50" style="width: 120px;" />
+            <button class="primary" id="startBtn">Start</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button class="danger" id="endBtn" disabled>End</button>
+          </div>
+
+          <div class="progress">
+            <div class="row space">
+              <div class="mini">Progress</div>
+              <div class="mono mini" id="timeLeft">00:00</div>
+            </div>
+            <div class="bar"><div id="barFill"></div></div>
+          </div>
+
+          <div class="sky" id="sky">
+            <div class="hud">
+              <div class="metric"><div class="k">Altitude</div><div class="v" id="altitude">100</div></div>
+              <div class="metric"><div class="k">Turbulence</div><div class="v" id="turb">0</div></div>
+              <div class="metric"><div class="k">Distractions</div><div class="v" id="distCount">0</div></div>
+              <div class="grade" id="gradePill">Grade: -</div>
+            </div>
+
+            <div class="plane" id="plane" aria-hidden="true">✈️</div>
+            <div class="trail" id="trail"></div>
+          </div>
+
+          <div class="panel">
+            <div class="gauge">
+              <div class="gtitle">
+                <span>Altitude over time</span>
+                <span class="mono" id="altLabel">ALT 100</span>
+              </div>
+              <canvas id="altChart" width="900" height="240"></canvas>
+            </div>
+            <div class="gauge">
+              <div class="gtitle">
+                <span>Turbulence over time</span>
+                <span class="mono" id="turbLabel">TRB 0</span>
+              </div>
+              <canvas id="turbChart" width="900" height="240"></canvas>
+            </div>
+          </div>
+
+          <div class="mini muted" id="autopilotInfo">
+            Autopilot: checkpoints every 10 minutes.
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="hd">
+            <div class="title">Distractions</div>
+            <div class="hint">Log quickly and refocus</div>
+          </div>
+          <div class="bd">
+            <textarea id="note" placeholder="What distracted you? (optional)"></textarea>
+            <div class="row">
+              <button id="distBtn" disabled>Log distraction</button>
+              <button class="ghost" id="refreshHistoryBtn">Refresh history</button>
+            </div>
+
+            <div class="title sm">Flight events</div>
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hd">
+            <div class="title">Recent flights</div>
+            <div class="hint">Last 10 sessions</div>
+          </div>
+          <div class="bd">
+            <div class="cards" id="recentCards"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal" id="checkpointModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="title">Autopilot checkpoint</div>
+      <div class="muted">Write a micro goal for next 10 minutes, then confirm.</div>
+      <textarea id="checkpointNote" placeholder="Example: finish 2 tasks, solve 1 problem, summarize 1 page"></textarea>
+      <div class="row right">
+        <button class="ghost" id="checkpointSkip">Later</button>
+        <button class="primary" id="checkpointDone">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
